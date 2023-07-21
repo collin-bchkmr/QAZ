@@ -1,31 +1,25 @@
-const Collection = require('json-collection');
+const LonaDB = require("lonadb-client");
 
 module.exports = class {
     constructor(QAZ) {
         this.QAZ = QAZ;
-        this.permissions = new Collection;
-        this.loadPermissions();
+        this.permissions = new LonaDB(this.QAZ.config.database.host, this.QAZ.config.database.port, this.QAZ.config.database.user, this.QAZ.config.database.password);
         this.permList = ["operator", "kick", "ban", "mute", "clear", "roles"];
-    }
-
-    loadPermissions = async function () {
-        await this.permissions.load(__dirname + "/../Data/permissions.json");
-        return;
     }
 
     checkPermission = async function (user, permission) {
         await this._checkUser(user);
 
-        if(await this.permissions.get(user)["operator"] === true) return true;
-        return this.permissions.get(user)[permission];
+        if(await this.permissions.get("QAZbotPerms", user)["operator"] === true) return true;
+        return await this.permissions.get("QAZbotPerms", user)[permission];
     }
 
     removePermission = async function (user, permission) {
         await this._checkUser(user);
 
-        let tempUserRemovePerm = await this.permissions.get(user);
+        let tempUserRemovePerm = await this.permissions.get("QAZbotPerms", user);
         tempUserRemovePerm[permission] = false;
-        this.permissions.data[user] = tempUserRemovePerm;
+        await this.permissions.set("QAZbotPerms", user, tempUserRemovePerm);
 
         return;
     }
@@ -33,18 +27,18 @@ module.exports = class {
     addPermission = async function (user, permission) {
         await this._checkUser(user);
 
-        let tempUserAddPerm = await this.permissions.get(user);
+        let tempUserAddPerm = await this.permissions.get("QAZbotPerms", user);
         tempUserAddPerm[permission] = true;
 
-        this.permissions.data[user] = tempUserAddPerm;
-        this.permissions.save(__dirname + "/../Data/permissions.json");
+        await this.permissions.set("QAZbotPerms", user, tempUserAddPerm);
 
         return;
     }
 
     getPermissions = async function (user) {
         await this._checkUser(user);
-        let tempUserGetPerms = await this.permissions.get(user);
+        let tempUserGetPerms = await this.permissions.get("QAZbotPerms", user);
+        console.log(tempUserGetPerms)
         return tempUserGetPerms;
     }
 
@@ -52,7 +46,7 @@ module.exports = class {
         if(user === undefined) return;
 
         let permList = this.permList;
-        let tempCheckup = await this.permissions.get(user);
+        let tempCheckup = await this.permissions.get("QAZbotPerms", user);
         if(tempCheckup === undefined) {
             tempCheckup = {};
             
@@ -60,11 +54,10 @@ module.exports = class {
                 if(!tempCheckup[permList[i]]) tempCheckup[permList[i]] = false;
             }
 
-            this.permissions.data[user] = tempCheckup;
+            await this.permissions.set("QAZbotPerms", user, tempCheckup);
             console.log("Created Permissions for " + user);
-            this.permissions.save(__dirname + "/../Data/permissions.json");
         } else {
-            tempCheckup = await this.permissions.get(user)
+            tempCheckup = await this.permissions.get("QAZbotPerms", user)
             let fix = false;
             for(let i in permList){
                 if(tempCheckup[permList[i]] === undefined) {
@@ -76,9 +69,9 @@ module.exports = class {
 
             if(fix === false) return;
 
-            this.permissions.data[user] = tempCheckup;
-            console.log("Fixed Permissions for " + user);
-            this.permissions.save(__dirname + "/../Data/permissions.json");   
+            await this.permissions.set("QAZbotPerms", user, tempCheckup);
+            console.log(tempCheckup + "a")
+            console.log("Fixed Permissions for " + user); 
         }
     }
 }
